@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Network Operations Center - Enterprise Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 2px solid #00ff88;
+            padding: 15px 30px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        .status-operational {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .status-warning {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+        }
+
+        .main-container {
+            margin-top: 80px;
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+            min-height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 20px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #ffffff, #cccccc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .kpi-change {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        .kpi-up {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .kpi-down {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+
+        .network-topology {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .topology-canvas {
+            width: 100%;
+            height: 400px;
+            border-radius: 10px;
+            background: radial-gradient(circle at center, rgba(0, 100, 255, 0.1) 0%, transparent 70%);
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .control-group h3 {
+            font-size: 16px;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .control-button.active {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+        }
+
+        .slider-container {
+            margin: 10px 0;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .data-table {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+        }
+
+        .data-table th {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .alert-panel {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .alert-panel h3 {
+            color: #ff6b6b;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .alert-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            margin: 8px 0;
+            font-size: 12px;
+            border-left: 3px solid #ff6b6b;
+        }
+
+        .log-panel {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log-entry.critical { color: #ff6b6b; }
+        .log-entry.warning { color: #ffa500; }
+        .log-entry.info { color: #00ff88; }
+        .log-entry.debug { color: #667eea; }
+
+        .metric-sparkline {
+            height: 40px;
+            margin-top: 10px;
+        }
+
+        .network-health {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .health-indicator {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .health-score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .health-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .progress-ring {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 10px;
+        }
+
+        .progress-ring circle {
+            stroke-width: 4;
+            fill: transparent;
+            stroke-linecap: round;
+        }
+
+        .progress-ring .background {
+            stroke: #333;
+        }
+
+        .progress-ring .progress {
+            stroke: #00ff88;
+            stroke-dasharray: 0 188.5;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dasharray 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes dataFlow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .loading-skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 80%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌐 5G Network Operations Center</h1>
+        <div class="header-controls">
+            <div class="status-badge status-operational">Network Operational</div>
+            <div style="font-size: 14px; color: #aaa;">Last Update: <span id="lastUpdate">--:--:--</span></div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Sidebar - Controls & Alerts -->
+        <div class="sidebar">
+            <div class="control-group">
+                <h3>🎛️ Network Control</h3>
+                <button class="control-button active" id="startBtn">Start Monitoring</button>
+                <button class="control-button" id="pauseBtn">Pause</button>
+                <button class="control-button" id="resetBtn">Reset Network</button>
+                <button class="control-button" id="optimizeBtn">Auto Optimize</button>
+            </div>
+
+            <div class="control-group">
+                <h3>⚙️ Parameters</h3>
+                <div class="slider-container">
+                    <label>Network Load: <span id="loadValue">45</span>%</label>
+                    <input type="range" class="slider" id="loadSlider" min="0" max="100" value="45">
+                </div>
+                <div class="slider-container">
+                    <label>Device Density: <span id="densityValue">150</span> devices/km²</label>
+                    <input type="range" class="slider" id="densitySlider" min="50" max="500" value="150">
+                </div>
+                <div class="slider-container">
+                    <label>Traffic Pattern: <span id="trafficValue">Normal</span></label>
+                    <input type="range" class="slider" id="trafficSlider" min="1" max="3" value="2">
+                </div>
+            </div>
+
+            <div class="network-health">
+                <div class="health-indicator">
+                    <svg class="progress-ring" viewBox="0 0 60 60">
+                        <circle class="background" cx="30" cy="30" r="25"></circle>
+                        <circle class="progress" cx="30" cy="30" r="25" id="networkHealthRing"></circle>
+                    </svg>
+                    <div class="health-score" id="networkHealth">98</div>
+                    <div class="health-label">Network Health</div>
+                </div>
+                <div class="health-indicator">
+                    <svg class="progress-ring" viewBox="0 0 60 60">
+                        <circle class="background" cx="30" cy="30" r="25"></circle>
+                        <circle class="progress" cx="30" cy="30" r="25" id="serviceHealthRing"></circle>
+                    </svg>
+                    <div class="health-score" id="serviceHealth">94</div>
+                    <div class="health-label">Service Quality</div>
+                </div>
+            </div>
+
+            <div class="alert-panel">
+                <h3>🚨 Active Alerts</h3>
+                <div id="alertsList">
+                    <div class="alert-item">High latency detected in Sector 7A</div>
+                    <div class="alert-item">Base station BS-045 at 89% capacity</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Throughput</div>
+                    <div class="kpi-value" id="totalThroughput">127.4</div>
+                    <div class="kpi-change kpi-up" id="throughputChange">+5.2%</div>
+                    <canvas class="metric-sparkline" id="throughputSparkline"></canvas>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Average Latency</div>
+                    <div class="kpi-value" id="avgLatency">2.8</div>
+                    <div class="kpi-change kpi-down" id="latencyChange">-12.3%</div>
+                    <canvas class="metric-sparkline" id="latencySparkline"></canvas>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Connected Devices</div>
+                    <div class="kpi-value" id="connectedDevices">45,672</div>
+                    <div class="kpi-change kpi-up" id="devicesChange">+8.1%</div>
+                    <canvas class="metric-sparkline" id="devicesSparkline"></canvas>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Network Efficiency</div>
+                    <div class="kpi-value" id="efficiency">94.2</div>
+                    <div class="kpi-change kpi-up" id="efficiencyChange">+2.1%</div>
+                    <canvas class="metric-sparkline" id="efficiencySparkline"></canvas>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Data Volume</div>
+                    <div class="kpi-value" id="dataVolume">892.1</div>
+                    <div class="kpi-change kpi-up" id="volumeChange">+15.7%</div>
+                    <canvas class="metric-sparkline" id="volumeSparkline"></canvas>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Service Uptime</div>
+                    <div class="kpi-value" id="uptime">99.97</div>
+                    <div class="kpi-change kpi-up" id="uptimeChange">+0.02%</div>
+                    <canvas class="metric-sparkline" id="uptimeSparkline"></canvas>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Real-Time Performance Metrics</div>
+                    <canvas id="performanceChart" width="800" height="300"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">📈 Traffic Distribution</div>
+                    <canvas id="trafficChart" width="300" height="300"></canvas>
+                </div>
+            </div>
+
+            <!-- Network Topology -->
+            <div class="network-topology">
+                <div class="chart-title">🗺️ Live Network Topology & Data Flow</div>
+                <canvas class="topology-canvas" id="topologyCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Right Sidebar - Detailed Info -->
+        <div class="sidebar">
+            <div class="control-group">
+                <h3>📡 Base Station Status</h3>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Load</th>
+                                <th>Status</th>
+                                <th>Users</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stationTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📱 Device Types</h3>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Count</th>
+                                <th>Avg Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deviceTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📋 System Logs</h3>
+                <div class="log-panel" id="logPanel">
+                    <!-- Dynamic log entries -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for detailed views -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Network Details</h2>
+            <div id="modalContent">
+                <!-- Dynamic modal content -->
+            </div>
+            <button class="control-button" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        class Advanced5GNetworkNOC {
+            constructor() {
+                this.isRunning = false;
+                this.animationFrame = null;
+                this.startTime = Date.now();
+                
+                // Network infrastructure
+                this.baseStations = [];
+                this.userDevices = [];
+                this.networkSlices = [];
+                this.dataFlows = [];
+                
+                // Data storage
+                this.metricsHistory = {
+                    throughput: [],
+                    latency: [],
+                    devices: [],
+                    efficiency: [],
+                    volume: [],
+                    uptime: []
+                };
+                
+                this.realTimeData = {
+                    totalThroughput: 127.4,
+                    avgLatency: 2.8,
+                    connectedDevices: 45672,
+                    efficiency: 94.2,
+                    dataVolume: 892.1,
+                    uptime: 99.97
+                };
+                
+                this.networkConfig = {
+                    load: 45,
+                    density: 150,
+                    trafficPattern: 2 // 1=Light, 2=Normal, 3=Heavy
+                };
+                
+                this.alerts = [];
+                this.logs = [];
+                
+                // Charts
+                this.charts = {};
+                this.sparklines = {};
+                
+                this.initializeSystem();
+            }
+            
+            initializeSystem() {
+                this.setupCanvas();
+                this.initializeCharts();
+                this.setupEventListeners();
+                this.generateNetworkInfrastructure();
+                this.startDataCollection();
+                this.updateDisplay();
+                
+                // Start real-time updates
+                this.start();
+            }
+            
+            setupCanvas() {
+                this.canvas = document.getElementById('topologyCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            }
+            
+            initializeCharts() {
+                // Performance Chart
+                const perfCtx = document.getElementById('performanceChart').getContext('2d');
+                this.charts.performance = new Chart(perfCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Throughput (Gbps)',
+                            data: [],
+                            borderColor: '#00ff88',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: 'Latency (ms)',
+                            data: [],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#ffffff' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: { color: '#ffffff' }
+                            },
+                            x: {
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#ffffff' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ffffff' }
+                            }
+                        }
+                    }
+                });
+                
+                // Traffic Distribution Chart
+                const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+                this.charts.traffic = new Chart(trafficCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['eMBB', 'URLLC', 'mMTC', 'Private Networks'],
+                        datasets: [{
+                            data: [45, 25, 20, 10],
+                            backgroundColor: [
+                                '#00ff88',
+                                '#667eea',
+                                '#ff6b6b',
+                                '#ffa500'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#000000'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#ffffff' }
+                            }
+                        }
+                    }
+                });
+                
+                this.initializeSparklines();
+            }
+            
+            initializeSparklines() {
+                const sparklineIds = ['throughput', 'latency', 'devices', 'efficiency', 'volume', 'uptime'];
+                
+                sparklineIds.forEach(id => {
+                    const canvas = document.getElementById(`${id}Sparkline`);
+                    const ctx = canvas.getContext('2d');
+                    
+                    this.sparklines[id] = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: Array(20).fill(''),
+                            datasets: [{
+                                data: Array(20).fill(0),
+                                borderColor: '#00ff88',
+                                backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                                borderWidth: 1,
+                                pointRadius: 0,
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { display: false },
+                                y: { display: false }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            elements: {
+                                point: { radius: 0 }
+                            }
+                        }
+                    });
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.start());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pause());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('optimizeBtn').addEventListener('click', () => this.optimizeNetwork());
+                
+                document.getElementById('loadSlider').addEventListener('input', (e) => {
+                    this.networkConfig.load = parseInt(e.target.value);
+                    document.getElementById('loadValue').textContent = e.target.value;
+                    this.addLog(`Network load adjusted to ${e.target.value}%`, 'info');
+                });
+                
+                document.getElementById('densitySlider').addEventListener('input', (e) => {
+                    this.networkConfig.density = parseInt(e.target.value);
+                    document.getElementById('densityValue').textContent = e.target.value;
+                    this.generateUserDevices();
+                });
+                
+                document.getElementById('trafficSlider').addEventListener('input', (e) => {
+                    this.networkConfig.trafficPattern = parseInt(e.target.value);
+                    const patterns = ['Light', 'Normal', 'Heavy'];
+                    document.getElementById('trafficValue').textContent = patterns[e.target.value - 1];
+                });
+            }
+            
+            generateNetworkInfrastructure() {
+                this.generateBaseStations();
+                this.generateUserDevices();
+                this.generateNetworkSlices();
+                this.addLog('Network infrastructure initialized', 'info');
+            }
+            
+            generateBaseStations() {
+                this.baseStations = [];
+                const stationCount = 8;
+                
+                for (let i = 0; i < stationCount; i++) {
+                    const station = {
+                        id: `BS-${String(i + 1).padStart(3, '0')}`,
+                        x: (i % 4) * (this.canvas.width / 4) + Math.random() * 100 + 50,
+                        y: Math.floor(i / 4) * (this.canvas.height / 2) + Math.random() * 100 + 50,
+                        range: 120 + Math.random() * 80,
+                        currentLoad: Math.random() * 60 + 20,
+                        maxCapacity: 1000 + Math.random() * 500,
+                        connectedDevices: 0,
+                        type: ['Macro', 'Small Cell', 'Pico Cell'][Math.floor(Math.random() * 3)],
+                        frequency: ['3.5GHz', '28GHz', '39GHz', '2.6GHz'][Math.floor(Math.random() * 4)],
+                        technology: ['5G NR', '5G SA', '5G NSA'][Math.floor(Math.random() * 3)],
+                        status: 'operational',
+                        throughput: 0,
+                        uptime: 99.9 + Math.random() * 0.09,
+                        lastUpdate: Date.now()
+                    };
+                    this.baseStations.push(station);
+                }
+            }
+            
+            generateUserDevices() {
+                this.userDevices = [];
+                const deviceCount = Math.floor(this.networkConfig.density * 0.3);
+                
+                const deviceTypes = [
+                    { type: 'Smartphone', icon: '📱', dataRate: [10, 100], priority: 'normal' },
+                    { type: 'IoT Sensor', icon: '📡', dataRate: [0.1, 5], priority: 'low' },
+                    { type: 'Laptop', icon: '💻', dataRate: [20, 200], priority: 'normal' },
+                    { type: 'Autonomous Vehicle', icon: '🚗', dataRate: [50, 500], priority: 'critical' },
+                    { type: 'AR/VR Device', icon: '🥽', dataRate: [100, 1000], priority: 'high' },
+                    { type: 'Industrial Robot', icon: '🤖', dataRate: [5, 50], priority: 'critical' }
+                ];
+                
+                for (let i = 0; i < deviceCount; i++) {
+                    const deviceType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
+                    const device = {
+                        id: `DEV-${String(i + 1).padStart(4, '0')}`,
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        type: deviceType.type,
+                        icon: deviceType.icon,
+                        priority: deviceType.priority,
+                        connectedStation: null,
+                        signalStrength: 0,
+                        dataRate: 0,
+                        maxDataRate: deviceType.dataRate[0] + Math.random() * (deviceType.dataRate[1] - deviceType.dataRate[0]),
+                        batteryLevel: 20 + Math.random() * 80,
+                        lastHandover: 0,
+                        qosLevel: Math.floor(Math.random() * 5) + 1
+                    };
+                    this.userDevices.push(device);
+                }
+            }
+            
+            generateNetworkSlices() {
+                this.networkSlices = [
+                    {
+                        name: 'eMBB',
+                        description: 'Enhanced Mobile Broadband',
+                        priority: 'normal',
+                        bandwidth: '100-1000 Mbps',
+                        latency: '10-20ms',
+                        reliability: '99.9%',
+                        color: '#00ff88',
+                        devices: []
+                    },
+                    {
+                        name: 'URLLC',
+                        description: 'Ultra-Reliable Low Latency Communications',
+                        priority: 'critical',
+                        bandwidth: '1-100 Mbps',
+                        latency: '<1ms',
+                        reliability: '99.999%',
+                        color: '#667eea',
+                        devices: []
+                    },
+                    {
+                        name: 'mMTC',
+                        description: 'Massive Machine Type Communications',
+                        priority: 'low',
+                        bandwidth: '1-10 Mbps',
+                        latency: '100-1000ms',
+                        reliability: '99%',
+                        color: '#ff6b6b',
+                        devices: []
+                    }
+                ];
+            }
+            
+            startDataCollection() {
+                // Simulate real-time data collection from network elements
+                setInterval(() => {
+                    this.collectNetworkMetrics();
+                    this.updateKPIs();
+                    this.checkAlerts();
+                    this.updateCharts();
+                }, 2000);
+                
+                // Update timestamp every second
+                setInterval(() => {
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                }, 1000);
+            }
+            
+            collectNetworkMetrics() {
+                // Simulate data collection from network management system
+                const loadFactor = this.networkConfig.load / 100;
+                const trafficMultiplier = this.networkConfig.trafficPattern;
+                
+                // Calculate network-wide metrics
+                let totalThroughput = 0;
+                let totalLatency = 0;
+                let activeConnections = 0;
+                
+                this.baseStations.forEach(station => {
+                    // Update station load based on connected devices
+                    const connectedDevices = this.userDevices.filter(d => d.connectedStation === station).length;
+                    station.connectedDevices = connectedDevices;
+                    station.currentLoad = Math.min(95, (connectedDevices / station.maxCapacity) * 100 * trafficMultiplier);
+                    
+                    // Calculate throughput for this station
+                    const stationThroughput = (station.maxCapacity * (1 - station.currentLoad / 100)) * Math.random() * 0.8 + 0.2;
+                    station.throughput = stationThroughput;
+                    totalThroughput += stationThroughput;
+                    
+                    if (connectedDevices > 0) {
+                        activeConnections++;
+                        totalLatency += 1 + station.currentLoad / 20 + Math.random() * 2;
+                    }
+                });
+                
+                // Update real-time data
+                this.realTimeData.totalThroughput = (totalThroughput / 1000).toFixed(1);
+                this.realTimeData.avgLatency = activeConnections > 0 ? (totalLatency / activeConnections).toFixed(1) : 0;
+                this.realTimeData.connectedDevices = this.userDevices.filter(d => d.connectedStation).length;
+                this.realTimeData.efficiency = Math.max(70, 100 - loadFactor * 20 + Math.random() * 5).toFixed(1);
+                this.realTimeData.dataVolume = (totalThroughput * 0.001 * (Date.now() - this.startTime) / 3600000).toFixed(1);
+                this.realTimeData.uptime = Math.max(99.5, 100 - Math.random() * 0.5).toFixed(2);
+                
+                // Store historical data
+                const timestamp = new Date().toLocaleTimeString();
+                this.updateMetricsHistory(timestamp);
+            }
+            
+            updateMetricsHistory(timestamp) {
+                const maxHistory = 20;
+                
+                Object.keys(this.metricsHistory).forEach(key => {
+                    if (this.metricsHistory[key].length >= maxHistory) {
+                        this.metricsHistory[key].shift();
+                    }
+                });
+                
+                this.metricsHistory.throughput.push({
+                    time: timestamp,
+                    value: parseFloat(this.realTimeData.totalThroughput)
+                });
+                
+                this.metricsHistory.latency.push({
+                    time: timestamp,
+                    value: parseFloat(this.realTimeData.avgLatency)
+                });
+                
+                this.metricsHistory.devices.push({
+                    time: timestamp,
+                    value: this.realTimeData.connectedDevices
+                });
+                
+                this.metricsHistory.efficiency.push({
+                    time: timestamp,
+                    value: parseFloat(this.realTimeData.efficiency)
+                });
+                
+                this.metricsHistory.volume.push({
+                    time: timestamp,
+                    value: parseFloat(this.realTimeData.dataVolume)
+                });
+                
+                this.metricsHistory.uptime.push({
+                    time: timestamp,
+                    value: parseFloat(this.realTimeData.uptime)
+                });
+            }
+            
+            updateKPIs() {
+                document.getElementById('totalThroughput').textContent = this.realTimeData.totalThroughput;
+                document.getElementById('avgLatency').textContent = this.realTimeData.avgLatency;
+                document.getElementById('connectedDevices').textContent = this.realTimeData.connectedDevices.toLocaleString();
+                document.getElementById('efficiency').textContent = this.realTimeData.efficiency;
+                document.getElementById('dataVolume').textContent = this.realTimeData.dataVolume;
+                document.getElementById('uptime').textContent = this.realTimeData.uptime;
+                
+                // Update health indicators
+                const networkHealth = Math.floor(this.realTimeData.efficiency);
+                const serviceHealth = Math.floor(this.realTimeData.uptime);
+                
+                document.getElementById('networkHealth').textContent = networkHealth;
+                document.getElementById('serviceHealth').textContent = serviceHealth;
+                
+                this.updateProgressRing('networkHealthRing', networkHealth);
+                this.updateProgressRing('serviceHealthRing', serviceHealth);
+                
+                // Update change indicators (simulate trends)
+                this.updateChangeIndicators();
+            }
+            
+            updateProgressRing(ringId, value) {
+                const ring = document.getElementById(ringId);
+                const circumference = 2 * Math.PI * 25;
+                const progress = (value / 100) * circumference;
+                ring.style.strokeDasharray = `${progress} ${circumference}`;
+                
+                // Change color based on value
+                if (value >= 90) {
+                    ring.style.stroke = '#00ff88';
+                } else if (value >= 70) {
+                    ring.style.stroke = '#ffa500';
+                } else {
+                    ring.style.stroke = '#ff6b6b';
+                }
+            }
+            
+            updateChangeIndicators() {
+                const changes = {
+                    throughput: Math.random() * 10 - 2,
+                    latency: Math.random() * 20 - 15,
+                    devices: Math.random() * 15 - 2,
+                    efficiency: Math.random() * 6 - 1,
+                    volume: Math.random() * 25,
+                    uptime: Math.random() * 0.1 - 0.02
+                };
+                
+                Object.keys(changes).forEach(key => {
+                    const element = document.getElementById(`${key}Change`);
+                    const value = changes[key];
+                    const sign = value >= 0 ? '+' : '';
+                    element.textContent = `${sign}${value.toFixed(1)}%`;
+                    element.className = `kpi-change ${value >= 0 ? 'kpi-up' : 'kpi-down'}`;
+                });
+            }
+            
+            checkAlerts() {
+                this.alerts = [];
+                
+                this.baseStations.forEach(station => {
+                    if (station.currentLoad > 85) {
+                        this.alerts.push({
+                            level: 'warning',
+                            message: `Base station ${station.id} at ${station.currentLoad.toFixed(1)}% capacity`,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                    }
+                    
+                    if (station.currentLoad > 95) {
+                        this.alerts.push({
+                            level: 'critical',
+                            message: `Critical: Base station ${station.id} overloaded`,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                    }
+                });
+                
+                if (parseFloat(this.realTimeData.avgLatency) > 10) {
+                    this.alerts.push({
+                        level: 'warning',
+                        message: `High network latency: ${this.realTimeData.avgLatency}ms`,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }
+                
+                this.updateAlertsDisplay();
+            }
+            
+            updateAlertsDisplay() {
+                const alertsList = document.getElementById('alertsList');
+                if (this.alerts.length === 0) {
+                    alertsList.innerHTML = '<div class="alert-item">No active alerts</div>';
+                } else {
+                    alertsList.innerHTML = this.alerts.map(alert => 
+                        `<div class="alert-item">[${alert.timestamp}] ${alert.message}</div>`
+                    ).join('');
+                }
+            }
+            
+            updateCharts() {
+                // Update performance chart
+                if (this.metricsHistory.throughput.length > 0) {
+                    this.charts.performance.data.labels = this.metricsHistory.throughput.map(d => d.time);
+                    this.charts.performance.data.datasets[0].data = this.metricsHistory.throughput.map(d => d.value);
+                    this.charts.performance.data.datasets[1].data = this.metricsHistory.latency.map(d => d.value);
+                    this.charts.performance.update('none');
+                }
+                
+                // Update sparklines
+                Object.keys(this.sparklines).forEach(key => {
+                    if (this.metricsHistory[key] && this.metricsHistory[key].length > 0) {
+                        this.sparklines[key].data.datasets[0].data = this.metricsHistory[key].map(d => d.value);
+                        this.sparklines[key].update('none');
+                    }
+                });
+                
+                // Update traffic distribution
+                this.updateTrafficDistribution();
+            }
+            
+            updateTrafficDistribution() {
+                const sliceData = [0, 0, 0, 0];
+                
+                this.userDevices.forEach(device => {
+                    if (device.connectedStation) {
+                        switch (device.priority) {
+                            case 'normal': sliceData[0]++; break;
+                            case 'critical': sliceData[1]++; break;
+                            case 'low': sliceData[2]++; break;
+                            case 'high': sliceData[3]++; break;
+                        }
+                    }
+                });
+                
+                this.charts.traffic.data.datasets[0].data = sliceData;
+                this.charts.traffic.update('none');
+            }
+            
+            updateTables() {
+                // Update base station table
+                const stationTable = document.getElementById('stationTable');
+                stationTable.innerHTML = this.baseStations.map(station => `
+                    <tr>
+                        <td>${station.id}</td>
+                        <td>${station.currentLoad.toFixed(1)}%</td>
+                        <td><span style="color: ${station.currentLoad > 85 ? '#ff6b6b' : '#00ff88'}">${station.status}</span></td>
+                        <td>${station.connectedDevices}</td>
+                    </tr>
+                `).join('');
+                
+                // Update device type table
+                const deviceTypes = {};
+                this.userDevices.forEach(device => {
+                    if (!deviceTypes[device.type]) {
+                        deviceTypes[device.type] = { count: 0, totalSpeed: 0 };
+                    }
+                    deviceTypes[device.type].count++;
+                    deviceTypes[device.type].totalSpeed += device.dataRate;
+                });
+                
+                const deviceTable = document.getElementById('deviceTable');
+                deviceTable.innerHTML = Object.keys(deviceTypes).map(type => `
+                    <tr>
+                        <td>${type}</td>
+                        <td>${deviceTypes[type].count}</td>
+                        <td>${(deviceTypes[type].totalSpeed / deviceTypes[type].count).toFixed(1)} Mbps</td>
+                    </tr>
+                `).join('');
+            }
+            
+            addLog(message, level = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                this.logs.unshift({
+                    message,
+                    level,
+                    timestamp
+                });
+                
+                if (this.logs.length > 100) {
+                    this.logs.pop();
+                }
+                
+                this.updateLogDisplay();
+            }
+            
+            updateLogDisplay() {
+                const logPanel = document.getElementById('logPanel');
+                logPanel.innerHTML = this.logs.slice(0, 20).map(log => 
+                    `<div class="log-entry ${log.level}">
+                        <span>${log.message}</span>
+                        <span>${log.timestamp}</span>
+                    </div>`
+                ).join('');
+            }
+            
+            start() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    document.getElementById('startBtn').classList.add('active');
+                    document.getElementById('pauseBtn').classList.remove('active');
+                    this.addLog('Network monitoring started', 'info');
+                    this.animate();
+                }
+            }
+            
+            pause() {
+                this.isRunning = false;
+                document.getElementById('startBtn').classList.remove('active');
+                document.getElementById('pauseBtn').classList.add('active');
+                this.addLog('Network monitoring paused', 'warning');
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                }
+            }
+            
+            reset() {
+                this.pause();
+                this.generateNetworkInfrastructure();
+                this.addLog('Network topology reset', 'info');
+                this.updateDisplay();
+            }
+            
+            optimizeNetwork() {
+                this.addLog('Running network optimization...', 'info');
+                
+                // Simulate network optimization
+                setTimeout(() => {
+                    this.baseStations.forEach(station => {
+                        station.currentLoad = Math.max(0, station.currentLoad - 15);
+                    });
+                    this.addLog('Network optimization completed', 'info');
+                }, 2000);
+            }
+            
+            animate() {
+                if (!this.isRunning) return;
+                
+                this.updateDeviceMovement();
+                this.updateConnections();
+                this.updateDataFlows();
+                this.drawTopology();
+                this.updateTables();
+                
+                this.animationFrame = requestAnimationFrame(() => this.animate());
+            }
+            
+            updateDeviceMovement() {
+                this.userDevices.forEach(device => {
+                    // Update position
+                    device.x += device.vx;
+                    device.y += device.vy;
+                    
+                    // Bounce off walls
+                    if (device.x <= 20 || device.x >= this.canvas.width - 20) {
+                        device.vx *= -1;
+                    }
+                    if (device.y <= 20 || device.y >= this.canvas.height - 20) {
+                        device.vy *= -1;
+                    }
+                    
+                    // Keep within bounds
+                    device.x = Math.max(20, Math.min(this.canvas.width - 20, device.x));
+                    device.y = Math.max(20, Math.min(this.canvas.height - 20, device.y));
+                });
+            }
+            
+            updateConnections() {
+                this.userDevices.forEach(device => {
+                    let bestStation = null;
+                    let bestSignal = 0;
+                    
+                    this.baseStations.forEach(station => {
+                        const distance = Math.sqrt(
+                            Math.pow(device.x - station.x, 2) + 
+                            Math.pow(device.y - station.y, 2)
+                        );
+                        
+                        if (distance <= station.range) {
+                            const signalStrength = Math.max(0, 100 - (distance / station.range) * 100);
+                            const loadPenalty = station.currentLoad / 2;
+                            const adjustedSignal = Math.max(0, signalStrength - loadPenalty);
+                            
+                            if (adjustedSignal > bestSignal) {
+                                bestSignal = adjustedSignal;
+                                bestStation = station;
+                            }
+                        }
+                    });
+                    
+                    // Handle handover
+                    if (device.connectedStation !== bestStation) {
+                        if (device.connectedStation) {
+                            this.addLog(`Handover: ${device.id} from ${device.connectedStation.id} to ${bestStation ? bestStation.id : 'disconnected'}`, 'debug');
+                        }
+                        device.connectedStation = bestStation;
+                        device.lastHandover = Date.now();
+                    }
+                    
+                    device.signalStrength = bestSignal;
+                    device.dataRate = bestStation ? (bestSignal / 100) * device.maxDataRate : 0;
+                });
+            }
+            
+            updateDataFlows() {
+                // Remove old flows
+                this.dataFlows = this.dataFlows.filter(flow => flow.life > 0);
+                
+                // Add new flows
+                this.userDevices.forEach(device => {
+                    if (device.connectedStation && Math.random() < 0.1) {
+                        this.dataFlows.push({
+                            fromX: device.x,
+                            fromY: device.y,
+                            toX: device.connectedStation.x,
+                            toY: device.connectedStation.y,
+                            progress: 0,
+                            speed: 0.03 + Math.random() * 0.02,
+                            life: 60,
+                            color: this.getSliceColor(device.priority),
+                            priority: device.priority
+                        });
+                    }
+                });
+                
+                // Update flow positions
+                this.dataFlows.forEach(flow => {
+                    flow.progress += flow.speed;
+                    flow.life--;
+                });
+            }
+            
+            getSliceColor(priority) {
+                switch (priority) {
+                    case 'critical': return '#667eea';
+                    case 'high': return '#ffa500';
+                    case 'normal': return '#00ff88';
+                    case 'low': return '#ff6b6b';
+                    default: return '#ffffff';
+                }
+            }
+            
+            drawTopology() {
+                // Clear canvas
+                this.ctx.fillStyle = 'rgba(15, 15, 35, 0.1)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.drawCoverageAreas();
+                this.drawDataFlows();
+                this.drawBaseStations();
+                this.drawUserDevices();
+                this.drawConnections();
+            }
+            
+            drawCoverageAreas() {
+                this.baseStations.forEach(station => {
+                    const loadAlpha = 0.1 + (station.currentLoad / 100) * 0.3;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(station.x, station.y, station.range, 0, 2 * Math.PI);
+                    
+                    const gradient = this.ctx.createRadialGradient(
+                        station.x, station.y, 0,
+                        station.x, station.y, station.range
+                    );
+                    gradient.addColorStop(0, `rgba(0, 255, 136, ${loadAlpha})`);
+                    gradient.addColorStop(1, 'transparent');
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fill();
+                    
+                    this.ctx.strokeStyle = `rgba(0, 255, 136, ${0.3 + loadAlpha})`;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                });
+            }
+            
+            drawBaseStations() {
+                this.baseStations.forEach(station => {
+                    // Main station circle
+                    this.ctx.beginPath();
+                    this.ctx.arc(station.x, station.y, 20, 0, 2 * Math.PI);
+                    
+                    const gradient = this.ctx.createRadialGradient(
+                        station.x, station.y, 0,
+                        station.x, station.y, 20
+                    );
+                    
+                    if (station.currentLoad > 85) {
+                        gradient.addColorStop(0, '#ff6b6b');
+                        gradient.addColorStop(1, '#cc5555');
+                    } else {
+                        gradient.addColorStop(0, '#00ff88');
+                        gradient.addColorStop(1, '#00cc6a');
+                    }
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fill();
+                    
+                    // Pulsing effect
+                    const pulseRadius = 20 + Math.sin(Date.now() / 300) * 8;
+                    this.ctx.beginPath();
+                    this.ctx.arc(station.x, station.y, pulseRadius, 0, 2 * Math.PI);
+                    this.ctx.strokeStyle = station.currentLoad > 85 ? 'rgba(255, 107, 107, 0.6)' : 'rgba(0, 255, 136, 0.6)';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.stroke();
+                    
+                    // Station info
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = 'bold 10px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(station.id, station.x, station.y - 35);
+                    this.ctx.font = '8px Arial';
+                    this.ctx.fillText(`${station.currentLoad.toFixed(0)}%`, station.x, station.y - 25);
+                    this.ctx.fillText(`${station.connectedDevices} dev`, station.x, station.y + 40);
+                });
+            }
+            
+            drawUserDevices() {
+                this.userDevices.forEach(device => {
+                    const isConnected = device.connectedStation !== null;
+                    const size = device.priority === 'critical' ? 12 : 8;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(device.x, device.y, size, 0, 2 * Math.PI);
+                    
+                    if (isConnected) {
+                        this.ctx.fillStyle = this.getSliceColor(device.priority);
+                    } else {
+                        this.ctx.fillStyle = '#666666';
+                    }
+                    
+                    this.ctx.fill();
+                    
+                    // Signal strength indicator
+                    if (isConnected && device.signalStrength > 30) {
+                        const strengthRadius = size + (device.signalStrength / 100) * 8;
+                        this.ctx.beginPath();
+                        this.ctx.arc(device.x, device.y, strengthRadius, 0, 2 * Math.PI);
+                        this.ctx.strokeStyle = `${this.getSliceColor(device.priority)}66`;
+                        this.ctx.lineWidth = 1;
+                        this.ctx.stroke();
+                    }
+                    
+                    // Priority indicator
+                    if (device.priority === 'critical') {
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.font = '8px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText('!', device.x, device.y + 3);
+                    }
+                });
+            }
+            
+            drawDataFlows() {
+                this.dataFlows.forEach(flow => {
+                    const currentX = flow.fromX + (flow.toX - flow.fromX) * flow.progress;
+                    const currentY = flow.fromY + (flow.toY - flow.fromY) * flow.progress;
+                    
+                    // Draw beam trail
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(flow.fromX, flow.fromY);
+                    this.ctx.lineTo(currentX, currentY);
+                    this.ctx.strokeStyle = flow.color;
+                    this.ctx.lineWidth = flow.priority === 'critical' ? 4 : 2;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.stroke();
+                    
+                    // Draw moving particle
+                    this.ctx.beginPath();
+                    this.ctx.arc(currentX, currentY, 3, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = flow.color;
+                    this.ctx.fill();
+                    
+                    // Glow effect
+                    this.ctx.shadowColor = flow.color;
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+                });
+            }
+            
+            drawConnections() {
+                this.userDevices.forEach(device => {
+                    if (device.connectedStation && device.signalStrength > 20) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(device.x, device.y);
+                        this.ctx.lineTo(device.connectedStation.x, device.connectedStation.y);
+                        
+                        const alpha = (device.signalStrength / 100) * 0.3;
+                        this.ctx.strokeStyle = `${this.getSliceColor(device.priority)}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
+                        this.ctx.lineWidth = 1;
+                        this.ctx.setLineDash([3, 3]);
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+                });
+            }
+            
+            updateDisplay() {
+                this.updateKPIs();
+                this.updateTables();
+                this.updateLogDisplay();
+                this.updateAlertsDisplay();
+                this.drawTopology();
+            }
+            
+            // Data export functionality
+            exportNetworkData() {
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    networkConfig: this.networkConfig,
+                    realTimeData: this.realTimeData,
+                    baseStations: this.baseStations,
+                    userDevices: this.userDevices.map(device => ({
+                        id: device.id,
+                        type: device.type,
+                        priority: device.priority,
+                        signalStrength: device.signalStrength,
+                        dataRate: device.dataRate,
+                        connectedStation: device.connectedStation ? device.connectedStation.id : null
+                    })),
+                    metricsHistory: this.metricsHistory,
+                    alerts: this.alerts
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `5g_network_data_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                this.addLog('Network data exported successfully', 'info');
+            }
+            
+            // Network simulation scenarios
+            simulateNetworkEvent(eventType) {
+                switch (eventType) {
+                    case 'peak_traffic':
+                        this.addLog('Simulating peak traffic scenario', 'warning');
+                        this.baseStations.forEach(station => {
+                            station.currentLoad = Math.min(95, station.currentLoad + 20 + Math.random() * 15);
+                        });
+                        break;
+                        
+                    case 'station_failure':
+                        const randomStation = this.baseStations[Math.floor(Math.random() * this.baseStations.length)];
+                        randomStation.status = 'offline';
+                        randomStation.currentLoad = 0;
+                        this.addLog(`Base station ${randomStation.id} failure simulated`, 'critical');
+                        
+                        // Redistribute connected devices
+                        this.userDevices.forEach(device => {
+                            if (device.connectedStation === randomStation) {
+                                device.connectedStation = null;
+                            }
+                        });
+                        break;
+                        
+                    case 'interference':
+                        this.addLog('Simulating RF interference', 'warning');
+                        this.baseStations.forEach(station => {
+                            station.range *= 0.8; // Reduce coverage
+                        });
+                        break;
+                        
+                    case 'recovery':
+                        this.addLog('Initiating network recovery procedures', 'info');
+                        this.baseStations.forEach(station => {
+                            station.status = 'operational';
+                            station.currentLoad = Math.max(0, station.currentLoad - 25);
+                            station.range = Math.max(station.range, 120); // Restore coverage
+                        });
+                        break;
+                }
+            }
+            
+            // Advanced analytics
+            calculateNetworkKPIs() {
+                const analytics = {
+                    averageHandovers: this.userDevices.filter(d => d.lastHandover > Date.now() - 60000).length,
+                    spectrumEfficiency: (this.realTimeData.totalThroughput / this.baseStations.length).toFixed(2),
+                    networkUtilization: (this.baseStations.reduce((sum, s) => sum + s.currentLoad, 0) / this.baseStations.length).toFixed(1),
+                    qosViolations: this.userDevices.filter(d => d.dataRate < d.maxDataRate * 0.5).length,
+                    energyEfficiency: (this.realTimeData.totalThroughput / (this.baseStations.length * 100)).toFixed(3),
+                    coverageEfficiency: ((this.userDevices.filter(d => d.connectedStation).length / this.userDevices.length) * 100).toFixed(1)
+                };
+                
+                return analytics;
+            }
+            
+            // Machine learning predictions (simulated)
+            predictNetworkLoad() {
+                const currentHour = new Date().getHours();
+                const dayOfWeek = new Date().getDay();
+                
+                // Simulate ML-based traffic prediction
+                let predictedLoad = this.networkConfig.load;
+                
+                // Business hours pattern
+                if (currentHour >= 9 && currentHour <= 17 && dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    predictedLoad *= 1.3;
+                }
+                
+                // Evening entertainment peak
+                if (currentHour >= 18 && currentHour <= 22) {
+                    predictedLoad *= 1.5;
+                }
+                
+                // Weekend patterns
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    predictedLoad *= 0.8;
+                }
+                
+                return Math.min(100, predictedLoad + (Math.random() - 0.5) * 10);
+            }
+            
+            // Real-time optimization algorithms
+            optimizeBeamforming() {
+                this.addLog('Optimizing beamforming parameters', 'info');
+                
+                this.baseStations.forEach(station => {
+                    const connectedDevices = this.userDevices.filter(d => d.connectedStation === station);
+                    
+                    if (connectedDevices.length > 0) {
+                        // Simulate beamforming optimization
+                        connectedDevices.forEach(device => {
+                            device.signalStrength = Math.min(100, device.signalStrength + 5 + Math.random() * 10);
+                            device.dataRate = (device.signalStrength / 100) * device.maxDataRate;
+                        });
+                        
+                        station.currentLoad = Math.max(0, station.currentLoad - 5);
+                    }
+                });
+                
+                setTimeout(() => {
+                    this.addLog('Beamforming optimization completed', 'info');
+                }, 1500);
+            }
+            
+            // Network slice management
+            allocateNetworkSlice(deviceId, sliceType) {
+                const device = this.userDevices.find(d => d.id === deviceId);
+                if (device) {
+                    device.priority = sliceType;
+                    this.addLog(`Device ${deviceId} allocated to ${sliceType} slice`, 'info');
+                }
+            }
+            
+            // Edge computing simulation
+            simulateEdgeComputing() {
+                const edgeDevices = this.userDevices.filter(d => 
+                    d.type === 'Autonomous Vehicle' || d.type === 'AR/VR Device'
+                );
+                
+                edgeDevices.forEach(device => {
+                    if (device.connectedStation && Math.random() < 0.3) {
+                        device.dataRate *= 1.2; // Edge processing reduces latency/increases throughput
+                        this.addLog(`Edge computing task processed for ${device.id}`, 'debug');
+                    }
+                });
+            }
+            
+            // Advanced monitoring
+            startAdvancedMonitoring() {
+                // Deep packet inspection simulation
+                setInterval(() => {
+                    const randomDevice = this.userDevices[Math.floor(Math.random() * this.userDevices.length)];
+                    if (randomDevice.connectedStation) {
+                        this.addLog(`DPI: Analyzed traffic from ${randomDevice.id} - ${randomDevice.type}`, 'debug');
+                    }
+                }, 5000);
+                
+                // Network security monitoring
+                setInterval(() => {
+                    if (Math.random() < 0.05) { // 5% chance of security event
+                        this.addLog('Security: Anomalous traffic pattern detected', 'warning');
+                    }
+                }, 10000);
+                
+                // Performance anomaly detection
+                setInterval(() => {
+                    if (parseFloat(this.realTimeData.avgLatency) > 15) {
+                        this.addLog('Anomaly: Unusual latency spike detected', 'warning');
+                    }
+                }, 3000);
+            }
+        }
+        
+        // Modal functions
+        function showDetailModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+        
+        // Advanced control functions
+        function exportData() {
+            if (window.networkNOC) {
+                window.networkNOC.exportNetworkData();
+            }
+        }
+        
+        function simulateEvent(eventType) {
+            if (window.networkNOC) {
+                window.networkNOC.simulateNetworkEvent(eventType);
+            }
+        }
+        
+        function optimizeBeamforming() {
+            if (window.networkNOC) {
+                window.networkNOC.optimizeBeamforming();
+            }
+        }
+        
+        function showAdvancedControls() {
+            const content = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <button class="control-button" onclick="simulateEvent('peak_traffic')">Simulate Peak Traffic</button>
+                    <button class="control-button" onclick="simulateEvent('station_failure')">Simulate Station Failure</button>
+                    <button class="control-button" onclick="simulateEvent('interference')">Simulate Interference</button>
+                    <button class="control-button" onclick="simulateEvent('recovery')">Network Recovery</button>
+                    <button class="control-button" onclick="optimizeBeamforming()">Optimize Beamforming</button>
+                    <button class="control-button" onclick="exportData()">Export Network Data</button>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h3>Network Analytics</h3>
+                    <div id="analyticsData" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        Loading analytics...
+                    </div>
+                </div>
+            `;
+            showDetailModal('Advanced Network Controls', content);
+            
+            // Update analytics
+            if (window.networkNOC) {
+                const analytics = window.networkNOC.calculateNetworkKPIs();
+                document.getElementById('analyticsData').innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div>Spectrum Efficiency: <strong>${analytics.spectrumEfficiency} bps/Hz</strong></div>
+                        <div>Network Utilization: <strong>${analytics.networkUtilization}%</strong></div>
+                        <div>Coverage Efficiency: <strong>${analytics.coverageEfficiency}%</strong></div>
+                        <div>Energy Efficiency: <strong>${analytics.energyEfficiency} Gbps/kW</strong></div>
+                        <div>QoS Violations: <strong>${analytics.qosViolations}</strong></div>
+                        <div>Recent Handovers: <strong>${analytics.averageHandovers}</strong></div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Add advanced controls button to the control panel
+        document.addEventListener('DOMContentLoaded', function() {
+            const controlGroup = document.querySelector('.control-group');
+            const advancedBtn = document.createElement('button');
+            advancedBtn.className = 'control-button';
+            advancedBtn.textContent = 'Advanced Controls';
+            advancedBtn.onclick = showAdvancedControls;
+            controlGroup.appendChild(advancedBtn);
+        });
+        
+        // Initialize the advanced 5G NOC system
+        window.addEventListener('load', () => {
+            window.networkNOC = new Advanced5GNetworkNOC();
+            
+            // Start advanced monitoring features
+            setTimeout(() => {
+                window.networkNOC.startAdvancedMonitoring();
+            }, 2000);
+            
+            // Simulate edge computing tasks
+            setInterval(() => {
+                if (window.networkNOC) {
+                    window.networkNOC.simulateEdgeComputing();
+                }
+            }, 8000);
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        if (window.networkNOC) window.networkNOC.start();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        if (window.networkNOC) window.networkNOC.pause();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        if (window.networkNOC) window.networkNOC.reset();
+                        break;
+                    case 'o':
+                        e.preventDefault();
+                        if (window.networkNOC) window.networkNOC.optimizeNetwork();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
